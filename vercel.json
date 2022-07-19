@@ -1,7 +1,11 @@
 {
     "routes": [
         {
-            "handle": "filesystem"
+            "src": "/",
+            "dest": "/public"
         }
-    ]
+    ],
+    "env":{
+        "VERCEL": "true"
+    }
 }
