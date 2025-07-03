@@ -71,9 +71,9 @@ export class Service {
 
   private async connect(): Promise<WebSocket> {
     const connectionId = randomBytes(16).toString('hex').toUpperCase()
-    let url = `wss://eastus.api.speech.microsoft.com/cognitiveservices/websocket/v1?TrafficType=AzureDemo&X-ConnectionId=${connectionId}`
+    let url = `wss://eastasia.api.speech.microsoft.com/cognitiveservices/websocket/v1?TrafficType=AzureDemo&X-ConnectionId=${connectionId}`
     let ws = new WebSocket(url, {
-      host: 'eastus.tts.speech.microsoft.com',
+      host: 'eastasia.tts.speech.microsoft.com',
       origin: 'https://azure.microsoft.com',
       headers: {
         'User-Agent':

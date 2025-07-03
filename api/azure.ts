@@ -7,7 +7,7 @@ module.exports = async (request: Request, response: Response) => {
   try {
     if (request.method === 'GET') {
       let listResponse = await axios.get(
-        'https://eastus.api.speech.microsoft.com/cognitiveservices/voices/list',
+        'https://eastasia.api.speech.microsoft.com/cognitiveservices/voices/list',
         {
           headers : {
             'origin':'https://azure.microsoft.com',
