@@ -1,30 +1,23 @@
-FROM node:22-slim AS base
+FROM node:22-slim AS builder
 
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
-COPY . /app
 WORKDIR /app
 
-FROM base AS prod-deps
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile
+COPY ./package*.json ./
+RUN npm install
+COPY ./ ./
+RUN npm run build
 
-FROM base AS builder
+FROM node:22-slim AS production
 
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-RUN pnpm run build:node
-
-FROM base AS runner
 WORKDIR /app
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 hono
+COPY ./package*.json ./
+RUN npm install --production
 
-COPY --from=prod-deps --chown=hono:nodejs /app/node_modules /app/node_modules
-COPY --from=builder --chown=hono:nodejs /app/dist-node /app/dist
-COPY --from=builder --chown=hono:nodejs /app/public /app/public
+COPY ./public ./public
+COPY --from=builder /app/dist ./dist
+ENV TOKEN= PORT=3000
 
-USER hono
-EXPOSE 3000
+EXPOSE $PORT
 
-CMD ["node", "/app/dist/node.js"]
+CMD [ "node", "./dist/app.js" ]
