@@ -46,7 +46,7 @@ export class Service {
   private executorMap: Map<string, PromiseExecutor>
   private bufferMap: Map<string, Buffer>
 
-  private heartbeatTimer: NodeJS.Timer | null = null
+  private heartbeatTimer: NodeJS.Timeout | null = null
   constructor() {
     this.executorMap = new Map()
     this.bufferMap = new Map()
