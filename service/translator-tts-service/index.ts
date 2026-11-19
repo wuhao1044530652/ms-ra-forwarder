@@ -75,7 +75,18 @@ export class TranslatorTTSService {
     ): Promise<T> {
         const response = await fetch(url, { method: 'POST', headers, body })
         if (!response.ok) {
-            throw new HttpError(response.status, `HTTP error! Status: ${response.status}`)
+            // 把响应体前一段也带进错误里：微软 4xx 会说明具体原因
+            // （例如 Unsupported voice / quota exceeded），只报状态码没法排查。
+            let snippet = ''
+            try {
+                snippet = (await response.text()).replace(/\s+/g, ' ').slice(0, 300)
+            } catch {
+                snippet = '<响应体不可读>'
+            }
+            throw new HttpError(
+                response.status,
+                `HTTP ${response.status}: ${snippet || '<空响应体>'}`,
+            )
         }
         switch (resType) {
             case 'json':

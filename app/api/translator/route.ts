@@ -25,6 +25,16 @@ function errorMessage(error: unknown): string {
     return String(error)
 }
 
+/** retry 抛出的是带 errors 数组的普通对象，取最后一次的真实原因。 */
+function errorDetail(error: unknown): string | undefined {
+    if (!error || typeof error !== 'object' || !('errors' in error)) {
+        return undefined
+    }
+    const list = ((error as { errors?: unknown[] }).errors ?? []).filter(Boolean)
+    const last = list[list.length - 1]
+    return last === undefined ? undefined : errorMessage(last)
+}
+
 /** SERVER 环境变量指定区域；未设置或非法时交给凭据自带区域。 */
 function resolveServerArea(): string | undefined {
     const server = process.env.SERVER || process.env.TRANSLATOR_SERVER
@@ -97,13 +107,14 @@ export async function POST(request: Request) {
         })
     } catch (error) {
         const message = errorMessage(error)
+        const detail = errorDetail(error)
         console.error(
-            `[translator] fail ${requestSummary} ms=${Date.now() - startedAt} error=${message}`,
+            `[translator] fail ${requestSummary} ms=${Date.now() - startedAt} error=${message}${detail ? ` detail=${detail}` : ''}`,
         )
         if (!message.startsWith('Dynamic server usage')) {
             console.error('Full stack', (error as Error)?.stack)
         }
-        return new Response(JSON.stringify({ error: message }), {
+        return new Response(JSON.stringify({ error: message, detail }), {
             status: 503,
             headers: { 'Content-Type': 'application/json' },
         })
