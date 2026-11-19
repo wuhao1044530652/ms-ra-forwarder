@@ -35,10 +35,10 @@ function errorDetail(error: unknown): string | undefined {
     return last === undefined ? undefined : errorMessage(last)
 }
 
-/** SERVER 环境变量指定区域；未设置或非法时交给凭据自带区域。 */
+/** SERVER 环境变量指定区域；auto/default 或未设置时交给凭据自带区域。 */
 function resolveServerArea(): string | undefined {
-    const server = process.env.SERVER || process.env.TRANSLATOR_SERVER
-    if (!server) {
+    const server = (process.env.SERVER || process.env.TRANSLATOR_SERVER || '').trim()
+    if (!server || /^(auto|default|none)$/i.test(server)) {
         return undefined
     }
     if (!SERVER_AREA.has(server)) {

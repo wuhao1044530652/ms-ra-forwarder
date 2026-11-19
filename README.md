@@ -101,7 +101,7 @@ GET /api/text-to-speech?voice=Microsoft+Server+Speech+Text+to+Speech+Voice+(zh-C
 
 | 变量 | 说明 |
 | --- | --- |
-| `SERVER` / `TRANSLATOR_SERVER` | 指定合成区域，例如 `eastasia`、`japaneast`、`eastus`；不设置则使用凭据自带的区域 |
+| `SERVER` / `TRANSLATOR_SERVER` | 指定合成区域，例如 `eastasia`、`japaneast`、`eastus`；设置为 `auto`（推荐）或留空则使用凭据自带的区域。**填错区域会返回 401**，让请求发往与凭据不匹配的区域端点 |
 | `TRANSLATOR_FORWARDED_FOR` | 请求时伪装的 `x-forwarded-for`，默认 `13.104.54.77` |
 
 接口：
