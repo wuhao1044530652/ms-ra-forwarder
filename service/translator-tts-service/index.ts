@@ -178,8 +178,23 @@ export class TranslatorTTSService {
         format: string,
         serverArea?: string,
     ): Promise<Buffer> {
-        const token = await this.ensureToken()
+        // 换取凭据失败与合成失败要能区分：前者说明签名/网络/风控被拦，后者说明区域或 token 不被接受。
+        const token = await this.ensureToken().catch((error: unknown) => {
+            const msg = error instanceof Error ? error.message : String(error)
+            throw new HttpError(
+                error instanceof HttpError ? error.status : 0,
+                `换取凭据失败（区域参数=${serverArea ?? 'auto'}）: ${msg}`,
+            )
+        })
         const region = serverArea || token.r
+        // 合成失败时把实际使用的区域带上，否则只知道 401 无法判断是环境变量指错了区域。
+        const regionError = (error: unknown): HttpError => {
+            const msg = error instanceof Error ? error.message : String(error)
+            return new HttpError(
+                error instanceof HttpError ? error.status : 0,
+                `合成失败（区域=${region}，来源=${serverArea ? 'SERVER 环境变量' : '凭据'}）: ${msg}`,
+            )
+        }
 
         try {
             return await this.getAudio(region, token.t, ssml, format)
@@ -187,15 +202,19 @@ export class TranslatorTTSService {
             // 只有凭据失效（401/403）才值得刷新重试；SSML 本身有问题时不浪费一次刷新。
             const status = error instanceof HttpError ? error.status : 0
             if (status !== 401 && status !== 403) {
-                throw error
+                throw regionError(error)
             }
             console.warn(
-                `[translator-tts] 凭据失效（${status}），刷新后重试一次`,
+                `[translator-tts] 凭据失效（${status}，区域=${region}），刷新后重试一次`,
             )
             this.invalidTime = 0
             this.serverToken = null
             const refreshed = await this.ensureToken()
-            return this.getAudio(serverArea || refreshed.r, refreshed.t, ssml, format)
+            try {
+                return await this.getAudio(serverArea || refreshed.r, refreshed.t, ssml, format)
+            } catch (retryError) {
+                throw regionError(retryError)
+            }
         }
     }
 }
