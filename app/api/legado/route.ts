@@ -37,6 +37,32 @@ function json(data: unknown, status = 200): Response {
     })
 }
 
+/**
+ * 生成阅读要访问的对外地址。
+ *
+ * 容器里 request.url 的 host 往往是内部地址（localhost:8080 之类），直接用它拼出来
+ * 的链接阅读根本访问不到。优先级：前端传来的本站 api 地址 > 反代头 > request.url。
+ * 前端传来的 api 就是用户在浏览器里实际打开的地址，最可靠。
+ */
+function publicOrigin(request: Request, url: URL, api: string): string {
+    try {
+        const parsed = new URL(api)
+        if (parsed.pathname.replace(/\/+$/, '') === '/api/translator') {
+            return parsed.origin
+        }
+    } catch {
+        // api 缺失或不合法，继续往下退
+    }
+
+    const forwardedHost = request.headers.get('x-forwarded-host')
+    if (forwardedHost) {
+        const proto = request.headers.get('x-forwarded-proto') || 'https'
+        return `${proto}://${forwardedHost}`
+    }
+
+    return url.origin
+}
+
 /** 外部合成端点：沿用旧写法，把整段 SSML 模板交给阅读去填。 */
 function buildLegacyTarget(api: string, voiceName: string, styleName: string, styleDegree: string, lexicon: string) {
     const escapedSpeakText =
@@ -118,7 +144,7 @@ export async function GET(request: Request) {
                 params.push(`lexicon=${encodeURIComponent(lexicon)}`)
             }
 
-            const endpoint = new URL('/api/legado-tts', url.origin)
+            const endpoint = new URL('/api/legado-tts', publicOrigin(request, url, api))
             endpoint.search = '?' + params.join('&')
             targetUrl = endpoint.toString() + ',' + JSON.stringify({ method: 'POST', body: '{{speakText}}' })
         }
