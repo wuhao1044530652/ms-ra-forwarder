@@ -118,6 +118,70 @@ GET /api/text-to-speech?voice=Microsoft+Server+Speech+Text+to+Speech+Voice+(zh-C
 
 - `GET /api/legado?api=<翻译合成接口>&name=&voiceName=&styleName=&styleDegree=&voiceFormat=&token=`：返回阅读（legado）语音引擎导入数据，`url` 里带着带讲话风格的 SSML 模板。
 
+### Azure 订阅语音（自有密钥）
+
+页面地址为 `/azure`（首页右上角的云图标可进入）。
+
+这条链路直连你自己的 Azure 语音服务（`https://<区域>.tts.speech.microsoft.com`），用订阅密钥授权。相比前两条链路：
+
+- 声音与讲话风格以你订阅的资源为准，页面上的声音列表就是从 Azure 实时拉取的
+- 支持 `lexicon` 词典文件（改善多音字发音），这是另外两条链路没有的
+- 费用计入你自己的订阅，可在 Azure 门户查看用量
+
+#### 配置
+
+| 变量 | 说明 |
+| --- | --- |
+| `AZURE_TTS_KEYS` | 多密钥，形如 `eastasia:密钥1,southeastasia:密钥2`；也支持换行分隔（便于粘贴到 Railway/Vercel 的多行变量框） |
+| `AZURE_TTS_KEY` | 单密钥简写，等价于 `AZURE_TTS_KEYS` 里只有一项 |
+| `AZURE_TTS_REGION` | 默认区域，供没有写区域的条目使用，默认 `eastasia` |
+
+每个条目可以写成 `区域:密钥`、`区域@密钥` 或直接写 `密钥`（此时用 `AZURE_TTS_REGION`）。区域就是 Azure 语音资源所在的区域，例如 `eastasia`、`southeastasia`、`eastus`。**区域必须和密钥所属资源一致**，否则 Azure 会返回 401。
+
+```bash
+# 单个密钥
+AZURE_TTS_KEYS="eastasia:你的密钥"
+
+# 多个密钥：逗号或换行分隔，自动负载均衡
+AZURE_TTS_KEYS="eastasia:密钥A,southeastasia:密钥B,japaneast:密钥C"
+```
+
+#### 多密钥与负载均衡
+
+配置多个密钥后，请求会在它们之间分摊：
+
+- 优先选**在途请求最少**的密钥，数量相同时按轮询分摊，所以单个慢请求不会把后续请求都堵在同一个密钥上
+- 某个密钥返回 401/403（密钥失效、区域不符）时，该密钥冷却 10 分钟
+- 返回 429（配额/限流）时按 `Retry-After` 冷却，默认 60 秒
+- 网络错误或 5xx 时短暂冷却（5 秒起，按连续失败次数翻倍，最长 60 秒）
+- 失败会**自动换下一个密钥重试**，最多尝试 4 个，因此某个密钥挂掉时用户基本无感
+- 单密钥时也至少重试一次，避免偶发抖动直接失败
+
+想确认分摊是否符合预期，可以访问状态接口（设置了 `TOKEN` 时需要带凭据）：
+
+```bash
+curl http://localhost:3000/api/azure/status
+```
+
+返回每个密钥的区域、打码后的密钥、成功/失败次数、剩余冷却时间与最后一次错误。密钥只显示前 4 位和后 4 位，不会泄露完整值。
+
+#### 接口
+
+- `GET /api/azure`：声音列表（含每个声音支持的 `StyleList`），响应头 `X-Azure-Keys` 是当前配置的密钥数量
+- `POST /api/azure`：合成。请求体是完整 SSML，`Format` 头指定格式，设置了 `TOKEN` 时需要 `Authorization: Bearer <TOKEN>`
+
+  ```bash
+  curl -X POST 'http://localhost:3000/api/azure' \
+    -H 'Format: audio-24khz-48kbitrate-mono-mp3' \
+    -H 'Content-Type: text/plain' \
+    --data '<speak xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" version="1.0" xml:lang="zh-CN"><voice name="zh-CN-XiaoxiaoNeural"><mstts:express-as style="cheerful" styledegree="1"><prosody rate="0%" pitch="0%">你好，世界。</prosody></mstts:express-as></voice></speak>' \
+    -o test.mp3
+  ```
+
+  注意：调用本站接口时不需要、也不应该带 `Ocp-Apim-Subscription-Key`，Azure 密钥只在服务端使用，客户端只需要 `TOKEN`。
+
+- 阅读（legado）导入沿用 `GET /api/legado?api=<合成接口>&...`，`api` 填 `/api/azure` 即可，页面会自动生成链接与二维码。
+
 ### 限制访问
 
 如果需要防止他人滥用你的部署的服务，可以在应用的环境变量中添加 `TOKEN`，然后在请求头中添加 `Authorization: Bearer <TOKEN>`访问。
@@ -128,13 +192,15 @@ GET /api/text-to-speech?voice=Microsoft+Server+Speech+Text+to+Speech+Voice+(zh-C
 
 - 如果只需要为固定的文本生成语音，可以使用[有声内容创作](https://speech.microsoft.com/audiocontentcreation)。它提供了更丰富的功能可以生成更自然的声音。
 
-- 本项目使用的是 Edge 浏览器“大声朗读”和 Azure TTS 演示页面的接口，不保证后续可用性和稳定性。
+- 本项目默认使用 Edge 浏览器“大声朗读”的接口；`/translator` 使用微软翻译 App 的免密钥通道；`/azure` 则直连你自己的 Azure 语音服务。三者都不保证长期可用，其中只有 Azure 是官方正式接口。
 
 - **本项目仅供学习和参考，请勿商用。**
 
 ## 重要更改
 
-**2026-11-20：同步上游 Next.js 版本，翻译语音迁移到 Next.js（`/translator` + `/api/translator` + `/api/legado`），并移除 Azure TTS。旧版 Express 实现在 `legacy-express` 分支。**
+**2026-11-20：新增 Azure 订阅语音（`/azure` + `/api/azure` + `/api/azure/status`），支持多密钥与负载均衡；此前同步上游 Next.js 版本时移除的 Azure 链路，现在以"自有密钥直连"的形式回归，旧的免密钥演示通道不再使用。**
+
+**2026-11-20：同步上游 Next.js 版本，翻译语音迁移到 Next.js（`/translator` + `/api/translator` + `/api/legado`）。旧版 Express 实现在 `legacy-express` 分支。**
 
 **2025-08-20：使用NextJs重构项目，修复了无法合成的问题。部署时请删除原项目重新部署。**
 
