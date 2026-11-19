@@ -6,6 +6,8 @@
 
 部署时请删除原项目重新部署。
 
+项目同时支持 Docker 自托管和 Vercel：`next.config.mjs` 会在 Vercel 构建环境（`VERCEL=1`）下自动关闭 `output: "standalone"`，避免出现「构建成功、状态 READY，但访问任何页面都是 404 NOT_FOUND」。如果你自己的 Vercel 项目是在本仓库还是老架构时创建的，请到 Settings → Build & Development Settings 里确认 **Framework Preset 为 Next.js**（若显示 Other，改成 Next.js 后重新部署）。
+
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fwxxxcxx%2Fms-ra-forwarder&env=TOKEN&envDescription=%E8%AE%BF%E9%97%AE%E4%BB%A4%E7%89%8C&project-name=ms-ra-forwarder&repository-name=ms-ra-forwarder)
 
 
