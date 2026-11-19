@@ -55,7 +55,7 @@ export default function TranslatorWorkspace({ voices, formats, styles }: Transla
     const { toast } = useToast()
     const [name, setName] = useState('大声朗读')
     const [voiceName, setVoiceName] = useState('zh-CN-XiaoxiaoNeural')
-    const [voiceFormat, setVoiceFormat] = useState('webm-24khz-16bit-mono-opus')
+    const [voiceFormat, setVoiceFormat] = useState('audio-24khz-48kbitrate-mono-mp3')
     const [styleName, setStyleName] = useState('normal')
     const [styleDegree, setStyleDegree] = useState('1')
     const [token, setToken] = useState('')
@@ -291,6 +291,9 @@ export default function TranslatorWorkspace({ voices, formats, styles }: Transla
                                     </option>
                                 ))}
                             </select>
+                            <p className="text-xs text-muted-foreground">
+                                导入阅读时非 mp3 格式会自动换成 mp3：阅读用系统播放器拉流，webm/ogg 放不出来。
+                            </p>
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="style-name">讲话风格</Label>

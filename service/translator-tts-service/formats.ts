@@ -13,6 +13,23 @@ export const DEFAULT_TRANSLATOR_FORMAT = 'webm-24khz-16bit-mono-opus'
 /** 阅读（legado）联调用：不支持 webm/ogg 的播放器较多，默认给 mp3。 */
 export const DEFAULT_LEGADO_FORMAT = 'audio-24khz-48kbitrate-mono-mp3'
 
+/**
+ * 把选中的格式收敛成阅读真能播的格式。
+ *
+ * 阅读用 MediaPlayer 直接拉网络流，webm/ogg（opus）与 raw/riff（裸 PCM）这类
+ * 容器经常播不出来或播到一半断流——浏览器 <audio> 能播不代表阅读能播。
+ * 所以 legado 链路只保留 mp3，其余一律降级。
+ */
+export function toLegadoPlayableFormat(format: string): {
+    format: string
+    downgraded: boolean
+} {
+    if (/^audio-\d+khz-\d+kbitrate-mono-mp3$/.test(format)) {
+        return { format, downgraded: false }
+    }
+    return { format: DEFAULT_LEGADO_FORMAT, downgraded: true }
+}
+
 export const SERVER_AREA = new Set([
     'southafricanorth',
     'eastasia',
