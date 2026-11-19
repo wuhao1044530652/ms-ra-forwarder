@@ -4,7 +4,8 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList } from "@/co
 import { Button } from "@/components/shadcn/ui/button";
 import { Separator } from "@/components/shadcn/ui/separator";
 import clsx from "clsx";
-import { ArrowRightFromLine } from "lucide-react";
+import { ArrowRightFromLine, Languages } from "lucide-react";
+import Link from "next/link";
 import TTSContextProvider from "@/components/tts-context";
 import TtsHistory from "@/components/tts-history";
 import TTSWorkspace from "@/components/tts-workspace";
@@ -40,6 +41,11 @@ export default function Home() {
           </Breadcrumb>
         </div>
         <div className={clsx('pr-3 flex')}>
+          <Button variant={'ghost'} asChild title="翻译语音">
+            <Link href={'/translator'}>
+              <Languages />
+            </Link>
+          </Button>
           {authRequired && (
             <Button variant={'ghost'} onClick={logout} title="登出">
               <ArrowRightFromLine />

@@ -89,6 +89,33 @@ npm run start
 GET /api/text-to-speech?voice=Microsoft+Server+Speech+Text+to+Speech+Voice+(zh-CN,+XiaoxiaoNeural)&volume=0&rate=0&pitch=0&text=你好
 ```
 
+### 翻译语音
+
+页面地址为 `/translator`（首页右上角的语言图标可进入）。
+
+这条链路和 Edge 语音不同：它用微软翻译 App 接口换取临时凭据，再当作 Azure TTS 的授权使用，所以不需要自己的 Azure 密钥，并且支持讲话风格（`mstts:express-as`）。
+
+相关环境变量：
+
+| 变量 | 说明 |
+| --- | --- |
+| `SERVER` / `TRANSLATOR_SERVER` | 指定合成区域，例如 `eastasia`、`japaneast`、`eastus`；不设置则使用凭据自带的区域 |
+| `TRANSLATOR_FORWARDED_FOR` | 请求时伪装的 `x-forwarded-for`，默认 `13.104.54.77` |
+
+接口：
+
+- `POST /api/translator`：请求体为完整 SSML，`Format` 头指定音频格式，返回音频二进制（设置了 `TOKEN` 时需要 `Authorization: Bearer <TOKEN>`）。
+
+  ```bash
+  curl -X POST 'http://localhost:3000/api/translator' \
+    -H 'Format: audio-24khz-48kbitrate-mono-mp3' \
+    -H 'Content-Type: text/plain' \
+    --data '<speak xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" version="1.0" xml:lang="zh-CN"><voice name="zh-CN-XiaoxiaoNeural"><mstts:express-as style="cheerful" styledegree="1"><prosody rate="0%" pitch="0%">你好，世界。</prosody></mstts:express-as></voice></speak>' \
+    -o test.mp3
+  ```
+
+- `GET /api/legado?api=<翻译合成接口>&name=&voiceName=&styleName=&styleDegree=&voiceFormat=&token=`：返回阅读（legado）语音引擎导入数据，`url` 里带着带讲话风格的 SSML 模板。
+
 ### 限制访问
 
 如果需要防止他人滥用你的部署的服务，可以在应用的环境变量中添加 `TOKEN`，然后在请求头中添加 `Authorization: Bearer <TOKEN>`访问。
@@ -104,6 +131,8 @@ GET /api/text-to-speech?voice=Microsoft+Server+Speech+Text+to+Speech+Voice+(zh-C
 - **本项目仅供学习和参考，请勿商用。**
 
 ## 重要更改
+
+**2026-11-20：同步上游 Next.js 版本，翻译语音迁移到 Next.js（`/translator` + `/api/translator` + `/api/legado`），并移除 Azure TTS。旧版 Express 实现在 `legacy-express` 分支。**
 
 **2025-08-20：使用NextJs重构项目，修复了无法合成的问题。部署时请删除原项目重新部署。**
 
