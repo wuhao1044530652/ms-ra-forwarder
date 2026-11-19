@@ -68,6 +68,16 @@ export async function GET(request: Request) {
             `</voice>` +
             `</speak>`
 
+        // 只有真的填了 token 才塞 Authorization，否则会生成 `Bearer `（空凭据）这种无效头，
+        // 阅读端请求时既不会通过校验，也不容易看出原因。
+        const header: Record<string, string> = {
+            'Content-Type': 'text/plain',
+            Format: voiceFormat,
+        }
+        if (token) {
+            header.Authorization = 'Bearer ' + token
+        }
+
         const data = {
             name: name === '' ? 'TTS' : name,
             contentType,
@@ -75,11 +85,7 @@ export async function GET(request: Request) {
             loginCheckJs: '',
             loginUi: '',
             loginUrl: '',
-            header: JSON.stringify({
-                'Content-Type': 'text/plain',
-                Authorization: 'Bearer ' + token,
-                Format: voiceFormat,
-            }),
+            header: JSON.stringify(header),
             url: api + ',' + JSON.stringify({ method: 'POST', body: ssml }),
         }
 

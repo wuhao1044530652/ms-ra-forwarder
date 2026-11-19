@@ -7,6 +7,7 @@ import { Label } from '@/components/shadcn/ui/label'
 import { Separator } from '@/components/shadcn/ui/separator'
 import { Textarea } from '@/components/shadcn/ui/textarea'
 import { useToast } from '@/components/shadcn/hooks/use-toast'
+import { isAuthRequired } from '@/app/actions/login'
 import type { TranslatorVoiceGroup } from '@/service/translator-tts-service/voice-list'
 import clsx from 'clsx'
 import { ArrowLeft, Link2, LoaderCircle, Play, QrCode } from 'lucide-react'
@@ -64,6 +65,8 @@ export default function TranslatorWorkspace({ voices, formats, styles }: Transla
     const [qrDataUrl, setQrDataUrl] = useState('')
     const [dialogOpen, setDialogOpen] = useState(false)
     const [generating, setGenerating] = useState(false)
+    // 服务端是否设置了 TOKEN：设了就必须带凭据，否则试听和导入都会 401。
+    const [authRequired, setAuthRequired] = useState(false)
 
     // 已在上游页面登录过的话，直接复用 localStorage 里的凭据，省得再手填一次。
     useEffect(() => {
@@ -71,7 +74,34 @@ export default function TranslatorWorkspace({ voices, formats, styles }: Transla
         if (savedToken) {
             setToken(savedToken)
         }
-    }, [])
+        isAuthRequired()
+            .then((required) => {
+                setAuthRequired(required)
+                if (required && !savedToken) {
+                    toast({
+                        title: '本站已设置 TOKEN',
+                        description: '请先在首页登录，或在这里填写凭据后再测试，否则接口会返回 401。',
+                        variant: 'destructive',
+                    })
+                }
+            })
+            .catch(() => {
+                // 取不到认证要求时按「不需要」处理，让请求自己报错即可。
+            })
+    }, [toast])
+
+    /** 需要凭据但没填：提前拦下，避免拿着空 token 生成一条用不了的导入配置。 */
+    function tokenMissing(): boolean {
+        if (!authRequired || token.trim()) {
+            return false
+        }
+        toast({
+            title: '缺少凭据',
+            description: '本站设置了 TOKEN 环境变量，请先填写凭据（TOKEN）。',
+            variant: 'destructive',
+        })
+        return true
+    }
 
     const legadoImportLink = useMemo(() => {
         if (!legadoUrl) {
@@ -83,6 +113,9 @@ export default function TranslatorWorkspace({ voices, formats, styles }: Transla
     async function preview() {
         if (!previewText.trim()) {
             toast({ title: '测试文本不能为空', variant: 'destructive' })
+            return
+        }
+        if (tokenMissing()) {
             return
         }
         setPreviewing(true)
@@ -101,9 +134,17 @@ export default function TranslatorWorkspace({ voices, formats, styles }: Transla
                 body: ssml,
             })
             if (!response.ok) {
-                const detail = await response.text()
+                const raw = await response.text()
+                let detail = raw
+                try {
+                    detail = JSON.parse(raw)?.error ?? raw
+                } catch {
+                    // 非 JSON（例如网关错误页）就原样展示。
+                }
                 throw new Error(
-                    response.status === 401 ? '无效的密钥' : detail || `请求失败（${response.status}）`,
+                    response.status === 401
+                        ? '无效的凭据（TOKEN），请确认与服务端环境变量一致'
+                        : detail || `请求失败（${response.status}）`,
                 )
             }
             const blob = await response.blob()
@@ -124,6 +165,9 @@ export default function TranslatorWorkspace({ voices, formats, styles }: Transla
     }
 
     async function createLegadoUrl() {
+        if (tokenMissing()) {
+            return
+        }
         setGenerating(true)
         try {
             const origin = window.location.origin
@@ -297,7 +341,7 @@ export default function TranslatorWorkspace({ voices, formats, styles }: Transla
                             onChange={(event) => setToken(event.target.value)}
                         />
                         <p className="text-xs text-muted-foreground">
-                            没有设置 TOKEN 环境变量时留空即可。
+                            没有设置 TOKEN 环境变量时留空即可；设置了就必须填成一样的值，否则试听和导入都会返回 401。
                         </p>
                     </div>
 
