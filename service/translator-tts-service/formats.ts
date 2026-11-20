@@ -87,6 +87,7 @@ export const TRANSLATOR_STYLES = [
     { value: 'newscast-formal', label: '新闻广播-正式' },
     { value: 'sad', label: '悲伤' },
     { value: 'shouting', label: '呐喊' },
+    { value: 'storytelling', label: '故事' },
     { value: 'terrified', label: '惊恐' },
     { value: 'unfriendly', label: '冷漠' },
     { value: 'whispering', label: '窃窃私语' },
